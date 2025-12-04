@@ -1,0 +1,8 @@
+db:
+  user: root
+  password:
+  host: localhost
+  port: 3306
+  database: it_recruitment
+  echo: true
+  pool_pre_ping: true

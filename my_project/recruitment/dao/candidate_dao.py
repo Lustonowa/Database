@@ -11,9 +11,8 @@ class CandidateDAO(BaseDAO[Candidate]):
 
     def get_all(self) -> List[Candidate]:
         """
-        Перевизначаємо get_all, щоб одразу підтягувати (selectinload)
-        дані про рівні англійської та технічні навички.
-        Це запобігає DetachedInstanceError.
+        GET: Вантажимо всіх разом з рівнями (english_level, tech_level).
+        Це запобігає помилці DetachedInstanceError при читанні списку.
         """
         with session_scope() as s:
             return (
@@ -27,7 +26,7 @@ class CandidateDAO(BaseDAO[Candidate]):
 
     def get_by_id(self, candidate_id: int) -> Optional[Candidate]:
         """
-        Те саме для пошуку одного кандидата.
+        GET ONE: Вантажимо одного кандидата разом з рівнями.
         """
         with session_scope() as s:
             return (
@@ -39,3 +38,25 @@ class CandidateDAO(BaseDAO[Candidate]):
                 .filter(Candidate.candidate_id == candidate_id)
                 .one_or_none()
             )
+
+    def create(self, **kwargs) -> Candidate:
+        """
+        POST: Створюємо кандидата, а потім ПЕРЕЧИТУЄМО його з БД.
+        Це найважливіша частина фіксу помилки DetachedInstanceError при створенні.
+        """
+        # 1. Використовуємо базовий метод для фізичної вставки в БД
+        new_candidate_simple = super().create(**kwargs)
+        
+        # 2. Одразу робимо запит get_by_id, який підтягує всі зв'язки.
+        # Це гарантує, що ми повернемо повний об'єкт, готовий для to_dict().
+        return self.get_by_id(new_candidate_simple.candidate_id)
+
+    def update(self, obj_id: int, **kwargs) -> Optional[Candidate]:
+        """
+        PUT: Оновлюємо і одразу перечитуємо повні дані.
+        """
+        updated_candidate_simple = super().update(obj_id, **kwargs)
+        
+        if updated_candidate_simple:
+            return self.get_by_id(obj_id)
+        return None
